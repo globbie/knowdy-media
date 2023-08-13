@@ -3,9 +3,11 @@
 FROM golang:1.21.0-alpine3.18 as builder
 
 WORKDIR /build
-COPY go.mod ./
-RUN go mod download
+ADD internal/ /build/internal/
 COPY cmd/webgate/main.go .
+
+COPY go.mod ./
+RUN go mod tidy
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /build/knd-media
 

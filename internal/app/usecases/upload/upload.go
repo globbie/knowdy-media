@@ -15,18 +15,18 @@ type MediaFileInfo struct {
 }
 
 type Interface interface {
-	CreateFile(creatorId, roomId string, text string) error
+	CreateFile(mimeType string, fileName string, fileSize uint64, ownerId string, path string) (MediaFileInfo, error)
 }
 
 type UseCases struct {
-	FileStorage mediafile.Interface
+	MediaStorage mediafile.Interface
 }
 
-func (uc *UseCases) CreateFile(ownerId string, fileName string, fileSize uint64) ([]MediaFileInfo, error) {
+func (uc *UseCases) CreateFile(mimeType string, fileName string, fileSize uint64, ownerId string, path string) (MediaFileInfo, error) {
 	t := time.Now()
-	_, err := uc.MediaStorage.CreateFile(ownerId, roomId, text, t)
+	_, err := uc.MediaStorage.CreateFile(mimeType, fileName, fileSize, ownerId, path, t)
 	if err != nil {
-		return err
+		return MediaFileInfo{}, err
 	}
-	return nil
+	return MediaFileInfo{}, nil
 }

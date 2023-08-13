@@ -7,4 +7,5 @@ require (
         github.com/golang-jwt/jwt v3.2.2+incompatible
         github.com/matoous/go-nanoid/v2 v2.0.0
         github.com/redis/go-redis/v9 v9.0.2			     
+	github.com/prometheus/client_golang v1.10.0
 )

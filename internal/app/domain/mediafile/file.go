@@ -2,7 +2,7 @@ package mediafile
 
 import "time"
 
-type FileChunk {
+type FileChunk struct {
 	StorageId string
 	Id        string
 	Size      uint64
@@ -22,6 +22,6 @@ type MediaFile struct {
 }
 
 type Interface interface {
-	CreateFile(fileName string, fileSize int, ownerId string, path string, mimetype string, createdAt time.Time) (MediaFile, error)
+	CreateFile(mimetype string, fileName string, fileSize uint64, ownerId string, path string, createdAt time.Time) (MediaFile, error)
 	ListFiles(owner string) ([]MediaFile, error)
 }

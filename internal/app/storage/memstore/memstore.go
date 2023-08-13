@@ -1,7 +1,7 @@
 package memstore
 
 import (
-	"github.com/mp-hl-2021/chat/internal/app/domain/mediafile"
+	"github.com/globbie/knowdy-media/internal/app/domain/mediafile"
 
 	"strconv"
 	"sync"
@@ -18,27 +18,30 @@ type MemStore struct {
 	mu             *sync.Mutex
 }
 
-func New(storeId) *MemStore {
+func New(storeId string) *MemStore {
 	return &MemStore{
 	        Id:          storeId,
-		filesById:   make(map[string]message.Message),
-		filesByName: make(map[string][]message.Message),
+		filesById:   make(map[string]mediafile.MediaFile),
+		filesByName: make(map[string][]mediafile.MediaFile),
+		filesByHash: make(map[string][]mediafile.MediaFile),
 		mu:          &sync.Mutex{},
 	}
 }
 
-func (m *MemStore) CreateMediaFile(fileName string, ownerId, fileSize uint64, createdAt time.Time) (message.Message, error) {
+func (m *MemStore) CreateFile(mimeType string, fileName string, fileSize uint64, ownerId string, path string, createdAt time.Time) (mediafile.MediaFile, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	f := mediafile.MediaFile{
+		MimeType:  mimeType,
 		Id:        strconv.FormatUint(m.nextId, 16),
 		Name:      fileName,
 		Size:      fileSize,
 		Owner:     ownerId,
+		Path:      path,
 		CreatedAt: createdAt,
-		Text:      text,
 	}
-	m.filesById[f.Id] = f
+
+        m.filesById[f.Id] = f
 
         files, ok := m.filesByName[fileName]
 	if !ok {
@@ -46,7 +49,7 @@ func (m *MemStore) CreateMediaFile(fileName string, ownerId, fileSize uint64, cr
 	}
 	m.filesByName[fileName] = append(files, f)
 
-	files, ok := m.filesByHash[f.Hash]
+	files, ok = m.filesByHash[f.Hash]
 	if !ok {
 		m.filesByHash[f.Hash] = make([]mediafile.MediaFile, 0, 1)
    	        m.filesByHash[f.Hash] = append(files, f)
@@ -58,10 +61,10 @@ func (m *MemStore) CreateMediaFile(fileName string, ownerId, fileSize uint64, cr
         return f, nil
 }
 
-func (m *MemStore) ListFiles(ownerId) ([]mediafile.MediaFile, error) {
+func (m *MemStore) ListFiles(ownerId string) ([]mediafile.MediaFile, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	files, ok := m.messagesByOwner[ownerId]
+	files, ok := m.filesByOwner[ownerId]
 	if !ok {
 		return []mediafile.MediaFile{}, nil
 	}
