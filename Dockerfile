@@ -1,11 +1,13 @@
-FROM golang:1.16.2-alpine3.13 as builder
+# syntax=docker/dockerfile:1
+
+FROM golang:1.21.0-alpine3.18 as builder
 
 WORKDIR /build
-ADD . .
+COPY go.mod ./
+RUN go mod download
+COPY cmd/webgate/main.go .
 
-RUN ls -l
-
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o knd-media cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /build/knd-media
 
 RUN addgroup -S knd && adduser -S knd -G knd
 
@@ -18,4 +20,4 @@ USER knd
 COPY --from=builder /build/knd-media .
 
 EXPOSE 8080
-CMD ["/knd-media", "--listen-address=0.0.0.0:8069"]
+CMD ["/knd-media", "--listen-address=0.0.0.0:8080"]
