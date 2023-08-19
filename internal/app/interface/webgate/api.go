@@ -7,10 +7,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	// "mime/multipart"
 	"encoding/json"
 	"net/http"
-	"log"
 )
 
 const (
@@ -18,12 +16,12 @@ const (
 )
 
 type WebGate struct {
-	UploadUseCase upload.Interface
+	UploadFileSaver upload.FileSaver
 }
 
-func New(u upload.Interface) *WebGate {
+func New(fs upload.FileSaver) *WebGate {
 	return &WebGate{
-		UploadUseCase: u,
+		UploadFileSaver: fs,
 	}
 }
 
@@ -37,15 +35,26 @@ func (wg *WebGate) Router() http.Handler {
 
 	router.Use(monitor.Measurer())
 	router.Use(wg.logger)
-
 	return router
 }
 
 // Response JSON message
-type MediaUploadResponse struct {
+type FileUploadResponse struct {
+	ErrCode          string   `json:"errorCode"`
 	ErrDescription   string   `json:"errorDesc"`
-	MediaList    []string `json:"uploadMediaList"`
+	ContentDispositionList     []ContentDisposition `json:"contentDispositionList"`
 }
+
+type ContentDisposition struct {
+	MimeType         string   `json:"mimeType"`
+	Name             string   `json:"name"`
+	FileId           string   `json:"fileId"`
+	FileName         string   `json:"fileName"`
+	FileSize         uint64   `json:"fileSize"`
+	ErrCode          string   `json:"errorCode"`
+	ErrDescription   string   `json:"errorDesc"`
+}
+
 
 func (wg *WebGate) postMedia(w http.ResponseWriter, r *http.Request) {
 	/*userId, ok := r.Context().Value(userIdContextKey).(string)
@@ -59,21 +68,59 @@ func (wg *WebGate) postMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// accumulate upload results
+	result := FileUploadResponse{
+		ErrCode: "OK",
+		ErrDescription:    "Upload successful",
+		ContentDispositionList:  []ContentDisposition{},
+	}
+	w.Header().Add("Content-Type", "application/json")
+
+	var cds = make([]ContentDisposition, 0, 1)
         for k, _ := range r.MultipartForm.File {
-	        log.Println(k)
+	        file, fh, err := r.FormFile(k)
+		if err != nil {
+			result.ErrCode = "Incorrect form data"
+			result.ErrDescription = "Please check the input form"
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
 
-                _, err := wg.UploadUseCase.CreateFile("text/plain", "test.txt", 8, "me", "/")
-	        if err != nil {
-	 	   w.WriteHeader(http.StatusInternalServerError)
-		   return
+		var mimetype = "application/octet-stream"
+		types, ok := fh.Header["Content-Type"]
+		if ok {
+			for _, t := range types {
+				mimetype = http.DetectContentType([]byte(t))
+				break
+			}
+		}
+
+		var cd = ContentDisposition{mimetype, k,
+			"0", fh.Filename, uint64(fh.Size), "OK", "OK"}
+
+                rec, uc_err := wg.UploadFileSaver.SaveFile(file,
+			mimetype, fh.Filename, uint64(fh.Size), "me") // TODO auth
+	        if uc_err != nil {
+			// TODO: shall we continue or not?
+
+			// return current status
+			if err = json.NewEncoder(w).Encode(result); err != nil {
+				
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(wg.ConvertToHTTPStatus(uc_err))
+			return
 	        }
+
+		cd.FileId = rec.Id
+		cds = append(cds, cd)
 	}
 
+        // positive response
         w.Header().Add("Content-Type", "application/json")
-        result := MediaUploadResponse{
-		  ErrDescription:    "OK",
-		  MediaList:    []string{},
-	}
 	if err = json.NewEncoder(w).Encode(result); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

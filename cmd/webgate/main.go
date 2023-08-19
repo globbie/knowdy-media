@@ -5,10 +5,9 @@ import (
 	"github.com/globbie/knowdy-media/internal/app/storage/memstore"
 	"github.com/globbie/knowdy-media/internal/app/usecases/upload"
 
+	"github.com/gofrs/uuid"
         "context"
 	"flag"
-	// "io"
-	// "io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -30,16 +29,22 @@ const (
 )
 
 func init() {
-	flag.StringVar(&config.ListenAddress, "listen-address", "127.0.0.1:8069", "http server listen address")
+	flag.StringVar(&config.ListenAddress, "listen-address", "127.0.0.1:8082", "http server listen address")
 	flag.StringVar(&config.Path, "config-path", "/etc/knd-media/config.gsl", "path to Glottie config")
 	flag.Parse()	
 }
 
 func main() {
-	uc := &upload.UseCases{
-		MediaStorage: memstore.New(memStoreId),
+	// initialize uuid generator
+	_ = uuid.Must(uuid.NewV4())
+
+	var mem = memstore.New(memStoreId)
+
+	fs := &upload.FileStorage{
+		FileMetaSaver: mem,
+		FileMetaQuery: mem,
 	}
-	wg := webgate.New(uc)
+	wg := webgate.New(fs)
 
 	server := http.Server{
 		Handler:      wg.Router(),
@@ -67,7 +72,8 @@ func main() {
 		close(done)
 	}()
 
-	log.Println("Knowdy Media Processor is ready to handle requests at:", config.ListenAddress)
+	log.Println("Knowdy Media Processor is ready to handle requests at:",
+		config.ListenAddress)
 
 	err := server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {

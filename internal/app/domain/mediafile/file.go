@@ -1,6 +1,8 @@
 package mediafile
 
-import "time"
+import (
+	"time"
+)
 
 type FileChunk struct {
 	StorageId string
@@ -12,16 +14,20 @@ type MediaFile struct {
 	Id        string
 	Name      string
 	Owner     string
-	Path      string
 	Size      uint64
-	Hash      string
+	CheckSum  string
 	MimeType  string
 	CreatedAt time.Time
 	IsChunk   bool
 	Chunks    []FileChunk
 }
 
-type Interface interface {
-	CreateFile(mimetype string, fileName string, fileSize uint64, ownerId string, path string, createdAt time.Time) (MediaFile, error)
+type FileMetaSaver interface {
+	SaveFileMeta(mimetype string, fileId string, fileName string, fileSize uint64, CheckSum string, ownerId string) (MediaFile, error)
+}
+
+type FileMetaQuery interface {
+	CheckDoublets(checkSum string) ([]MediaFile, error)
 	ListFiles(owner string) ([]MediaFile, error)
 }
+
